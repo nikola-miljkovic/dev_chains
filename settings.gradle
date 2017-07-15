@@ -1,0 +1,4 @@
+rootProject.name = 'dev_chains'
+include 'traversal-service'
+include 'repository_service'
+
