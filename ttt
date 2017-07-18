@@ -1,0 +1,2 @@
+docker run -d --name redis-main -v /ddata:/data -p 6379:6379 redis --appendonly yes
+docker run -d --name rmq-main -v /ddata/rabbit:/var/lib/rabbitmq -p 8080:8080 -p 8081:15672 rabbitmq:3.6.9-management-alpine
