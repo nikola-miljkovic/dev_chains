@@ -63,6 +63,7 @@ fun main(args: Array<String>) {
         val json = JSONObject()
         json.put("service", serviceName)
         json.put("state", service.state)
+        json.put("total_users", service.totalUsers)
         json.put("last_id", service.lastId)
         json
     }

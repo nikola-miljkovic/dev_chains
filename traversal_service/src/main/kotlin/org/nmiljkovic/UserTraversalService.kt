@@ -11,7 +11,10 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
 class UserTraversalService(redisConn: StatefulRedisConnection<String, String>, val rabbitConn: Connection) {
-    private var done = AtomicInteger()
+    private val exchangeName = "user_exchange"
+    private val queueName = "user_queue"
+    private val routingKey = "black"
+
     private val asyncCommand = redisConn.async()
     private val traversalTask = Thread(this::traverseUsers)
 
@@ -24,35 +27,42 @@ class UserTraversalService(redisConn: StatefulRedisConnection<String, String>, v
             asyncCommand.set("user:last_id", value.toString())
         }
 
+    var totalUsers: Int
+        get() = asyncCommand.get("user:total").get()?.toInt() ?: 0
+        set(value) {
+            asyncCommand.set("user:total", value.toString())
+        }
+
     private fun traverseUsers() {
         logger.info("Loading service connections.")
         val rabbitChan = rabbitConn.createChannel()
         var nextEndpoint = "$API_ENDPOINT&since=$lastId"
 
-        val opts = HashMap<String, Any>()
-        opts.put("x-max-length", 500)
-        rabbitChan.exchangeDeclare("default", "direct", true)
-        rabbitChan.queueDeclare("default", true, false, false, opts)
-        rabbitChan.queueBind("default", "default", "black")
+        rabbitChan.exchangeDeclare(exchangeName, "direct", true)
+        rabbitChan.queueDeclare(queueName, true, false, false, null)
+        rabbitChan.queueBind(queueName, exchangeName, routingKey)
 
         logger.info("Service started.")
         while (true) {
             val (nextLink, usersList, count) = visitPage(nextEndpoint)
-            done.addAndGet(count)
 
             usersList.forEach {
                 try {
-                    rabbitChan.basicPublish("default", "black", null, it.value.toByteArray())
+                    rabbitChan.basicPublish(exchangeName, "black", null, it.value.toByteArray())
                 } catch (exc: SocketException) {
                     logger.error("RabbitMQ Connection failed!")
                 }
             }
             lastId = usersList.minBy { it.key }!!.key
+            totalUsers += count
 
-            if (nextLink != null)
-                nextEndpoint = nextLink
-            else
+            logger.info("Sent new batch of users.")
+
+            if (nextLink == null)
                 break
+
+            //rabbitChan.waitForConfirms()
+            nextEndpoint = nextLink
         }
     }
 

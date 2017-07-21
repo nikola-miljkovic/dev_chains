@@ -52,6 +52,10 @@ fun main(args: Array<String>) {
     val service = PresentationService(redisConn)
     service.start()
 
+    http.get("/") {
+        output(service.graph)
+    }
+
     http.get("/graph") {
         service.graph
     }
@@ -147,6 +151,7 @@ class PresentationService(val redisConn: StatefulRedisConnection<String, String>
 
     private fun createNodeArray(): JSONArray {
         val sorted = languageCounts.values.sortedByDescending { it }
+        val sortedLength = sorted.size
 
         val nodes = languages!!.mapIndexed { index, lang ->
                 val node = JSONObject()
@@ -155,17 +160,18 @@ class PresentationService(val redisConn: StatefulRedisConnection<String, String>
                 node.put("id", lang)
                 node.put("label", lang)
 
-                for (i in 1..4) {
-                    if (count < sorted[sorted.size / (5 * i)]) {
-                        node.put("size", i)
+                for (i in 1..10) {
+                    if (count < sorted[sortedLength / (5 * i)]) {
+                        node.put("size", i + 10)
                         break
                     } else {
-                        node.put("size", 5)
+                        node.put("size", 20)
                     }
                 }
 
-                node.put("x", rand.nextInt(600))
-                node.put("y", rand.nextInt(600))
+                node.put("color", getRandomColor())
+                node.put("x", rand.nextInt(100))
+                node.put("y", rand.nextInt(100))
                 node
         }
         return JSONArray(nodes)
@@ -211,6 +217,18 @@ class PresentationService(val redisConn: StatefulRedisConnection<String, String>
     }
 }
 
+fun getRandomColor() : String {
+    val rand = Random()
+    when (rand.nextInt(6)) {
+        0 -> return "#0074D9"
+        1 -> return "#39CCCC"
+        2 -> return "#01FF70"
+        3 -> return "#FF851B"
+        4 -> return "#001f3f"
+        else -> return "#85144b"
+    }
+}
+
 fun List<String>.toEdges(): List<JSONObject> {
     val rand = Random()
     return (this.subList(0, this.size - 1) zip this.subList(1, this.size))
@@ -218,7 +236,7 @@ fun List<String>.toEdges(): List<JSONObject> {
             val edge = JSONObject()
             edge.put("source", it.first)
             edge.put("target", it.second)
-            edge.put("color", "#${rand.nextInt(255)}${rand.nextInt(255)}${rand.nextInt(255)}")
+            edge.put("color", getRandomColor())
             edge.put("size", 3.5)
             edge
         }
