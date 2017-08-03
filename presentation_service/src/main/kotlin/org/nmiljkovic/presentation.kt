@@ -64,6 +64,14 @@ fun main(args: Array<String>) {
         val lang = params("lang")
         service.fetchPathFor(lang)
     }
+
+    http.before {
+        response.header("Access-Control-Allow-Origin", "*")
+        response.header("Access-Control-Request-Method", "*")
+        response.header("Access-Control-Allow-Headers", "*")
+        // Note: this may or may not be necessary in your particular application
+        response.type("application/json")
+    }
 }
 
 class PresentationService(val redisConn: StatefulRedisConnection<String, String>) {

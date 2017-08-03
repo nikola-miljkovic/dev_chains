@@ -4,4 +4,5 @@ include 'repository_service'
 include 'chains_shared'
 include 'traversal_service'
 include 'presentation_service'
+include 'data_processor_service'
 
